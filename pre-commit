@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+
+#dont push log data to master
+# Allows us to read user input below, assigns stdin to keyboard
+exec < /dev/tty
+STRING_PREFIX="[post-commit hook]"
+
+SERVICE="compass"
+RESULT=`ps -ax | grep -v grep | grep $SERVICE`
+
+echo "$STRING_PREFIX Cheking for running compass process."
+if [[ $RESULT ]]
+    then
+        while true
+            do
+                read -p "$STRING_PREFIX Looks like a ruby process Compass is running! Kill process? [Y/n]" yn
+                if [ "$yn" = "" ]
+                    then
+                        yn='Y'
+                fi
+                case $yn in
+                    [Yy] ) killall -9 compass sevent_watch; echo "$STRING_PREFIX Stopped compass."; break;;
+                    [Nn] ) break;;
+                    * ) echo "$STRING_PREFIX Please answer y or n for yes or no.";;
+                esac
+        done
+fi
+
+echo "$STRING_PREFIX Cheking for bad strings"
+BAD_STRING_LIST=('var_dump' 'alert(' 'alert (' 'console.log')
+
+for BAD_STRING in $BAD_STRING_LIST[*]
+    do
+        VAR=$(git diff | grep -wi $BAD_STRING)
+        if [[ ! -z "$VAR" ]]
+            then
+                echo "$STRING_PREFIX You've left a $BAD_STRING in one of your files! Aborting commit..."
+                exit 1
+        fi
+done
+
+if [[ -d "./includes" && -d "./modules" && -d "./misc" && -d "./themes" ]]
+    then 
+        echo "$STRING_PREFIX Drupal installation found checking for drupal core hacks!"
+        echo "$STRING_PREFIX Running pre-commit hook to check if you are being silly.";
+        # Checks for core hacks.
+        # Include this in your project as .git/hooks/prepare-commit-msg
+
+        # All you have to do to allow this is to flag your commit message with the text
+        # "CORE HACK" in caps, and it will go through.
+        # If your message does not contain that string, it will be rejected.
+        # the --skip-verify option will also work if you are just local and lazy.
+
+        WARNING_MESSAGE="CORE HACK"          
+        # Check the files being committed.
+        git diff --cached --name-status | while read st FILE
+            do
+                # Skip deleted files.
+                if [[ "$st" == 'D' ]]
+                    then 
+                        continue
+                fi
+
+                # This list is short and rough just to spot the worst offenders.
+                # Things in root dir are your own call.
+                for PATTERN in "^includes" "^modules" "^misc" "^themes"
+                    do
+                        if [[ $FILE =~ $PATTERN ]]
+                            then
+                                echo "$STRING_PREFIX BAD BOY - Don't hack core."
+                                echo "$STRING_PREFIX The file change you propose to $FILE is in the path $PATTERN."
+                                echo "$STRING_PREFIX We won't allow that!"
+                                BAD_BOY=1
+                        fi
+                done
+
+                if [[ $BAD_BOY ]]
+                    then
+                        if grep -r "CORE HACK" $FILE
+                            then
+                                echo "$STRING_PREFIX Well, you have a excuse! Hmmmm...."
+                                MADE_EXCUSE=1
+                        fi
+                        if [ $MADE_EXCUSE ]
+                            then
+                                echo "$STRING_PREFIX Well, OK. Just this once then."
+                        else 
+                            
+                            echo "$STRING_PREFIX If you can figure out how to turn off this warning, then I'll trust you know what you are doing."
+                            echo "$STRING_PREFIX Until then, this commit will not go in. Hint: read about git hooks."
+                            HACK_BAD_BOY=1
+                            exit 10 
+                        fi
+                fi
+        done
+
+    if [ $? -eq 10 ]; then exit 1; fi
+
+    for i in $(git diff --name-only)
+        do
+            if [[ $i -eq 'settings.php' || $i -eq *'site/default/files'*  ]]
+                then
+                    echo "$STRING_PREFIX You're going to commit $i?!"
+                    echo "$STRING_PREFIX We won't allow that! Exiting commit!"
+                    exit 1;
+            fi
+    done
+fi
+
+#RESULT=$(git symbolic-ref HEAD 2>/dev/null) = "refs/heads/master"
+echo "$STRING_PREFIX Cheking for master branch."
+if [[ `git branch | grep \* | cut -f2 -d' '` == "master" ]]
+    then
+        while true
+            do
+                read -p "$STRING_PREFIX Looks like you're going to push to the master branch continue? [Y/n]" yn
+                if [ "$yn" = "" ]
+                    then
+                        yn='Y'
+                fi
+                case $yn in
+                    [Yy] ) echo "$STRING_PREFIX Pushing to  master."; break;;
+                    [Nn] ) echo "$STRING_PREFIX Exiting commit."; exit 11;;
+                    * ) echo "$STRING_PREFIX Please answer y or n for yes or no.";;
+                esac
+        done
+
+        if [ $? -eq 11 ]; then  exit 1; fi  
+fi
+
+echo "$STRING_PREFIX Perfect validation!"
+echo "$STRING_PREFIX Commit done!"
+exit;
