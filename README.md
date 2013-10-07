@@ -11,7 +11,7 @@ The pre-commit hook checks
 -- Also check if no settings.php or files folder is added to a commit
 - Check if we push or the master branch - in our case most of the time production
 
-Install git hooks globale on osxp put the pre-commit hook in 
+Install git hooks globale on osx put the pre-commit hook in 
 
   /usr/share/git-core/templates/hooks/
   
