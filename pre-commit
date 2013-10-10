@@ -65,7 +65,7 @@ if [[ -d "./includes" && -d "./modules" && -d "./misc" && -d "./themes" ]]
                 # Things in root dir are your own call.
                 for PATTERN in "^includes" "^modules" "^misc" "^themes"
                     do
-                        if [[ $FILE =~ $PATTERN ]]
+                        if echo $FILE | grep -E $PATTERN > /dev/null
                             then
                                 echo "$STRING_PREFIX BAD BOY - Don't hack core."
                                 echo "$STRING_PREFIX The file change you propose to $FILE is in the path $PATTERN."
