@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+exec < /dev/tty
+STRING_PREFIX="[post-checkout hook]"
+
+SERVICE="compass"
+RESULT=`ps -ax | grep -v grep | grep $SERVICE`
+
+echo "$STRING_PREFIX Cheking for running compass process."
+if [[ $RESULT ]]
+    then
+        while true
+            do
+                read -p "$STRING_PREFIX Looks like a ruby process Compass is running! Kill process? [Y/n]" yn
+                if [ "$yn" = "" ]
+                    then
+                        yn='Y'
+                fi
+                case $yn in
+                    [Yy] ) killall -9 compass sevent_watch; echo "$STRING_PREFIX Stopped compass."; break;;
+                    [Nn] ) break;;
+                    * ) echo "$STRING_PREFIX Please answer y or n for yes or no.";;
+                esac
+        done
+fi
+
